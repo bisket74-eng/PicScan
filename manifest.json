@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "PicScan",
+  "short_name": "PicScan",
+  "description": "Quickly scan, separate, name, and save several printed photos at once.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6ecdf",
+  "theme_color": "#5e493a",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
