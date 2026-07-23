@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#5e493a" />
+  <meta name="picscan-version" content="4" />
+  <title>PicScan</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="PicScan" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <style>
+    :root {
+      --ink: #302820;
+      --muted: #74685e;
+      --paper: rgba(255,255,255,.93);
+      --brown: #6f5745;
+      --brown-dark: #4d3a2d;
+      --sage: #5e825f;
+      --sage-light: #e9f1e6;
+      --gold: #e0b65f;
+      --red: #b95757;
+      --line: #daccc0;
+      --shadow: 0 10px 28px rgba(65,46,33,.15);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(224,182,95,.24), transparent 28%),
+        radial-gradient(circle at 100% 15%, rgba(126,164,123,.25), transparent 30%),
+        linear-gradient(155deg, #f6ecdf, #edf3e8 58%, #f7eee5);
+    }
+
+    body { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+    button, select, input { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    button:disabled { opacity: .48; cursor: not-allowed; }
+
+    .app {
+      width: min(900px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding-bottom: 30px;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      color: white;
+      background: rgba(77,58,45,.96);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 18px rgba(47,34,24,.24);
+    }
+
+    h1 { margin: 0; font-size: 1.55rem; line-height: 1; letter-spacing: .01em; }
+    header p { margin: 4px 0 0; color: #eadfd6; font-size: .77rem; }
+
+    .header-count {
+      flex: 0 0 auto;
+      min-width: 62px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      color: var(--brown-dark);
+      background: #f4dca7;
+      text-align: center;
+      font-size: .8rem;
+      font-weight: 850;
+    }
+
+    main { padding: 15px; }
+
+    .card {
+      margin-bottom: 15px;
+      padding: 14px;
+      border: 1px solid rgba(111,87,69,.11);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .name-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .field-label {
+      display: grid;
+      gap: 6px;
+      color: var(--brown-dark);
+      font-size: .8rem;
+      font-weight: 850;
+    }
+
+    select, .scan-name {
+      width: 100%;
+      min-height: 44px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: var(--ink);
+      background: white;
+      outline: none;
+    }
+
+    select:focus, .scan-name:focus {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 3px rgba(94,130,95,.13);
+    }
+
+    .next-name {
+      padding: 9px 10px;
+      border-radius: 13px;
+      color: var(--sage);
+      background: var(--sage-light);
+      font-size: .74rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .camera-shell {
+      position: relative;
+      width: 100%;
+      min-height: 280px;
+      overflow: hidden;
+      border-radius: 18px;
+      background: #211d1a;
+      aspect-ratio: 3 / 4;
+    }
+
+    video, #previewCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #211d1a;
+    }
+
+    #previewCanvas { display: none; }
+
+    .guide {
+      position: absolute;
+      inset: 7%;
+      pointer-events: none;
+      border: 2px dashed rgba(255,255,255,.75);
+      border-radius: 14px;
+      box-shadow: 0 0 0 999px rgba(0,0,0,.11);
+    }
+
+    .guide::after {
+      content: "Keep a little space between photos";
+      position: absolute;
+      left: 50%;
+      bottom: 9px;
+      width: max-content;
+      max-width: 92%;
+      transform: translateX(-50%);
+      padding: 6px 9px;
+      border-radius: 999px;
+      color: white;
+      background: rgba(0,0,0,.62);
+      font-size: .7rem;
+      text-align: center;
+    }
+
+    .camera-shell.reviewing .guide { display: none; }
+
+    .scan-beam {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: -16%;
+      height: 16%;
+      display: none;
+      pointer-events: none;
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,232,153,.28) 20%,
+        rgba(255,226,122,.86) 50%,
+        rgba(255,232,153,.28) 80%,
+        rgba(255,255,255,0)
+      );
+      filter: drop-shadow(0 0 11px rgba(255,220,113,.88));
+    }
+
+    .camera-shell.scanning .scan-beam {
+      display: block;
+      animation: scanDown .52s linear infinite;
+    }
+
+    @keyframes scanDown { from { transform: translateY(0); } to { transform: translateY(760%); } }
+
+    .scan-progress {
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      display: none;
+      transform: translateX(-50%);
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: white;
+      background: rgba(48,40,32,.9);
+      font-size: .8rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .camera-shell.scanning .scan-progress { display: block; }
+
+    .status {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 10px 0 0;
+      padding: 8px 10px;
+      border-radius: 12px;
+      color: var(--muted);
+      background: #f5eee7;
+      text-align: center;
+      font-size: .79rem;
+      font-weight: 750;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 0 4px rgba(224,182,95,.17);
+    }
+
+    .status.ready .status-dot { background: var(--sage); box-shadow: 0 0 0 4px rgba(94,130,95,.15); }
+    .status.error .status-dot { background: var(--red); box-shadow: 0 0 0 4px rgba(185,87,87,.14); }
+
+    .camera-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 11px;
+    }
+
+    .camera-control {
+      position: relative;
+      min-width: 0;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 8px 5px;
+      border: 1px solid rgba(111,87,69,.12);
+      border-radius: 13px;
+      color: var(--brown-dark);
+      background: #f1e6dc;
+      box-shadow: 0 4px 10px rgba(79,58,45,.10);
+      font-size: clamp(.66rem, 2.8vw, .78rem);
+      font-weight: 900;
+      line-height: 1.08;
+      text-align: center;
+    }
+
+    .camera-control:disabled,
+    .camera-control.disabled {
+      opacity: .44;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .use-photo-control input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .use-photo-control.disabled input {
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
+    .camera-toggle-control {
+      color: white;
+      background: var(--sage);
+    }
+
+    .camera-toggle-control.live {
+      background: #9a5953;
+    }
+
+    .take-picture-control {
+      color: white;
+      background: var(--brown);
+    }
+
+    .review-actions {
+      display: none;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .review-actions.visible { display: grid; }
+
+    .confirm-button, .retake-button, .whole-button {
+      min-height: 52px;
+      padding: 11px 12px;
+      border-radius: 15px;
+      font-weight: 900;
+    }
+
+    .confirm-button { color: white; background: var(--sage); }
+    .retake-button { color: var(--brown-dark); background: #f1e6dc; }
+    .whole-button { display: none; width: 100%; margin-top: 9px; color: #5b421d; background: #f2d18e; }
+    .whole-button.visible { display: block; }
+
+    details {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: .79rem;
+    }
+
+    summary { cursor: pointer; font-weight: 800; }
+
+    .sensitivity-help {
+      display: grid;
+      gap: 3px;
+      margin-top: 9px;
+      padding: 9px 10px;
+      border-radius: 11px;
+      background: #f7f0e8;
+      line-height: 1.35;
+    }
+
+    .sensitivity-help strong {
+      color: var(--brown-dark);
+      font-size: .82rem;
+    }
+
+    .sensitivity-help span {
+      color: var(--muted);
+      font-size: .75rem;
+    }
+
+    .sensitivity-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 10px;
+      margin-top: 9px;
+    }
+
+    input[type="range"] { width: 100%; accent-color: var(--sage); }
+
+    .range-value {
+      min-width: 30px;
+      padding: 5px 7px;
+      border-radius: 999px;
+      color: var(--sage);
+      background: var(--sage-light);
+      text-align: center;
+      font-weight: 850;
+    }
+
+    .sensitivity-scale {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: .68rem;
+      font-weight: 750;
+    }
+
+    .results-section { display: none; }
+    .results-section.visible { display: block; }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 11px;
+    }
+
+    .section-head h2 { margin: 0; font-size: 1.05rem; }
+    .section-head p { margin: 4px 0 0; color: var(--muted); font-size: .78rem; }
+
+    .scans {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 11px;
+    }
+
+    .scan-card {
+      overflow: hidden;
+      border: 1px solid rgba(111,87,69,.14);
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 6px 17px rgba(63,46,34,.10);
+    }
+
+    .scan-card.new {
+      animation: dropIn .34s cubic-bezier(.2,.85,.3,1.2);
+    }
+
+    @keyframes dropIn {
+      from { opacity: 0; transform: translateY(-20px) scale(.92); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .scan-image-wrap {
+      position: relative;
+      min-height: 132px;
+      cursor: zoom-in;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        linear-gradient(45deg, #eee 25%, transparent 25%),
+        linear-gradient(-45deg, #eee 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #eee 75%),
+        linear-gradient(-45deg, transparent 75%, #eee 75%);
+      background-size: 18px 18px;
+      background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+    }
+
+    .scan-image-wrap img {
+      width: 100%;
+      max-height: 250px;
+      display: block;
+      object-fit: contain;
+      background: #222;
+    }
+
+    .scan-number {
+      position: absolute;
+      top: 7px;
+      left: 7px;
+      min-width: 27px;
+      padding: 5px 7px;
+      border-radius: 999px;
+      color: white;
+      background: rgba(48,40,32,.84);
+      text-align: center;
+      font-size: .72rem;
+      font-weight: 850;
+    }
+
+    .scan-info { padding: 9px; }
+    .scan-name { min-height: 39px; padding: 7px 8px; border-radius: 10px; font-size: .76rem; }
+
+    .scan-tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .scan-tools button {
+      min-height: 36px;
+      padding: 6px 4px;
+      border-radius: 9px;
+      color: var(--brown-dark);
+      background: #f2e8df;
+      font-size: .7rem;
+      font-weight: 850;
+    }
+
+    .scan-tools button:last-child { color: #903939; background: #f8dede; }
+
+    .result-actions {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .zip-button, .clear-button {
+      min-height: 48px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-weight: 900;
+    }
+
+    .zip-button { color: #4e391c; background: #efcd85; }
+    .clear-button { color: white; background: var(--red); }
+
+
+    .photo-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: none;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background: rgba(24,20,17,.96);
+      color: white;
+      overscroll-behavior: contain;
+    }
+
+    .photo-viewer.visible { display: grid; }
+
+    .viewer-top {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: calc(10px + env(safe-area-inset-top)) 11px 9px;
+      background: rgba(35,29,25,.97);
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+
+    .viewer-title {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .viewer-title strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: .91rem;
+    }
+
+    .viewer-title span {
+      display: block;
+      margin-top: 2px;
+      color: #cfc4ba;
+      font-size: .69rem;
+    }
+
+    .viewer-zoom-controls {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .viewer-round-button {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border-radius: 50%;
+      color: white;
+      background: rgba(255,255,255,.12);
+      font-size: 1.15rem;
+      font-weight: 900;
+    }
+
+    .viewer-round-button.close {
+      background: #9a5953;
+      font-size: 1.35rem;
+    }
+
+    .viewer-reset-button {
+      min-width: 44px;
+      height: 38px;
+      padding: 0 8px;
+      border-radius: 999px;
+      color: white;
+      background: rgba(255,255,255,.12);
+      font-size: .72rem;
+      font-weight: 850;
+    }
+
+    .viewer-stage {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: 10px;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .viewer-stage::after {
+      content: "Tap once to close when not zoomed";
+      position: absolute;
+      left: 50%;
+      bottom: 9px;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: calc(100% - 24px);
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: rgba(255,255,255,.84);
+      background: rgba(0,0,0,.48);
+      font-size: .65rem;
+      pointer-events: none;
+    }
+
+    .viewer-image {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      object-fit: contain;
+      transform: translate3d(0,0,0) scale(1);
+      transform-origin: center center;
+      will-change: transform;
+      -webkit-user-drag: none;
+      user-select: none;
+    }
+
+    .viewer-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+      padding: 9px 10px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(35,29,25,.98);
+      border-top: 1px solid rgba(255,255,255,.10);
+    }
+
+    .viewer-action {
+      min-width: 0;
+      min-height: 47px;
+      padding: 7px 4px;
+      border-radius: 12px;
+      color: white;
+      background: #6f5745;
+      font-size: clamp(.64rem, 2.7vw, .75rem);
+      font-weight: 900;
+      line-height: 1.08;
+    }
+
+    .viewer-action.glare { background: #5e825f; }
+    .viewer-action.save { color: #4e391c; background: #efcd85; }
+    .viewer-action:disabled { opacity: .42; }
+
+    @media (max-width: 390px) {
+      .viewer-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .busy {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(41,33,27,.72);
+      backdrop-filter: blur(5px);
+    }
+
+    .busy.visible { display: grid; }
+
+    .busy-box {
+      width: min(330px, 100%);
+      padding: 22px;
+      border-radius: 20px;
+      background: white;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto 12px;
+      border: 5px solid #eadfd3;
+      border-top-color: var(--sage);
+      border-radius: 50%;
+      animation: spin .78s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .busy-box strong { display: block; margin-bottom: 4px; }
+    .busy-box span { color: var(--muted); font-size: .82rem; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      z-index: 150;
+      max-width: calc(100% - 28px);
+      padding: 11px 14px;
+      border-radius: 999px;
+      color: white;
+      background: rgba(48,40,32,.95);
+      box-shadow: 0 7px 24px rgba(0,0,0,.23);
+      font-size: .82rem;
+      font-weight: 800;
+      text-align: center;
+      transform: translate(-50%, 120px);
+      transition: transform .22s ease;
+    }
+
+    .toast.show { transform: translate(-50%, 0); }
+
+    #sourceCanvas { display: none; }
+
+    @media (min-width: 700px) {
+      main { padding: 22px; }
+      .camera-shell { aspect-ratio: 4 / 3; }
+      .scans { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>PicScan</h1>
+        <p>Scan several printed photos at once</p>
+      </div>
+      <div class="header-count" id="headerCount">0 ready</div>
+    </header>
+
+    <main>
+      <section class="card">
+        <div class="name-row">
+          <label class="field-label">
+            Photo names
+            <select id="categorySelect">
+              <option value="Family">Family</option>
+              <option value="Work">Work</option>
+              <option value="Vacation">Vacation</option>
+              <option value="Projects">Projects</option>
+              <option value="Home">Home</option>
+              <option value="Pets">Pets</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <div class="next-name" id="nextName">Next: Family-0001</div>
+        </div>
+
+        <div class="camera-shell" id="cameraShell">
+          <video id="video" playsinline muted></video>
+          <canvas id="previewCanvas"></canvas>
+          <div class="guide"></div>
+          <div class="scan-beam"></div>
+          <div class="scan-progress" id="scanProgress">Scanning 1 of 1</div>
+        </div>
+
+        <div class="status" id="status">
+          <span class="status-dot"></span>
+          <span id="statusText">Loading photo detection…</span>
+        </div>
+
+        <div class="camera-controls" id="cameraControls">
+          <label class="camera-control use-photo-control" id="usePhotoControl">
+            <span>USE PHOTO</span>
+            <input id="fileInput" type="file" accept="image/*" />
+          </label>
+          <button class="camera-control camera-toggle-control" id="cameraToggleButton">OPEN CAMERA</button>
+          <button class="camera-control take-picture-control" id="takePictureButton" disabled>TAKE PICTURE</button>
+        </div>
+
+        <div class="review-actions" id="reviewActions">
+          <button class="confirm-button" id="confirmButton">YES — SCAN THESE</button>
+          <button class="retake-button" id="retakeButton">NO — RETAKE</button>
+        </div>
+        <button class="whole-button" id="wholeButton">KEEP THE WHOLE PICTURE</button>
+
+        <details>
+          <summary>Did PicScan miss a photo or one of its four corners?</summary>
+          <div class="sensitivity-help">
+            <strong>Adjust sensitivity</strong>
+            <span>Move it right to look harder for missed photos or corners. Move it left if PicScan outlines the table or other objects.</span>
+          </div>
+          <div class="sensitivity-row">
+            <input id="sensitivity" type="range" min="1" max="10" value="6" aria-label="Adjust photo edge detection sensitivity" />
+            <span class="range-value" id="sensitivityValue">6</span>
+          </div>
+          <div class="sensitivity-scale">
+            <span>Fewer outlines</span>
+            <span>More outlines</span>
+          </div>
+        </details>
+      </section>
+
+      <section class="card results-section" id="resultsSection">
+        <div class="section-head">
+          <div>
+            <h2>Ready to save</h2>
+            <p>Names keep counting even after PicScan is closed.</p>
+          </div>
+        </div>
+
+        <div class="scans" id="scans"></div>
+
+        <div class="result-actions">
+          <button class="zip-button" id="downloadAllButton">DOWNLOAD ZIP</button>
+          <button class="clear-button" id="clearButton">CLEAR SCREEN</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <canvas id="sourceCanvas"></canvas>
+
+
+  <div class="photo-viewer" id="photoViewer" aria-hidden="true">
+    <div class="viewer-top">
+      <div class="viewer-title">
+        <strong id="viewerTitle">Photo</strong>
+        <span>Pinch or use + and − to zoom. FIX PHOTO reduces glare and enhances old prints.</span>
+      </div>
+      <div class="viewer-zoom-controls">
+        <button class="viewer-round-button" id="viewerMinusButton" aria-label="Zoom out">−</button>
+        <button class="viewer-reset-button" id="viewerResetButton">1×</button>
+        <button class="viewer-round-button" id="viewerPlusButton" aria-label="Zoom in">+</button>
+        <button class="viewer-round-button close" id="viewerCloseButton" aria-label="Close photo">×</button>
+      </div>
+    </div>
+
+    <div class="viewer-stage" id="viewerStage">
+      <img class="viewer-image" id="viewerImage" alt="Full-size scanned photo" draggable="false" />
+    </div>
+
+    <div class="viewer-actions">
+      <button class="viewer-action glare" id="viewerGlareButton">FIX PHOTO</button>
+      <button class="viewer-action" id="viewerUndoButton" disabled>UNDO</button>
+      <button class="viewer-action" id="viewerRotateButton">ROTATE</button>
+      <button class="viewer-action save" id="viewerSaveButton">SAVE</button>
+    </div>
+  </div>
+
+  <div class="busy" id="busy">
+    <div class="busy-box">
+      <div class="spinner"></div>
+      <strong id="busyTitle">Opening camera…</strong>
+      <span id="busyText">Please allow camera access.</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    "use strict";
+
+    const COUNTER_KEY = "picscan-category-counters-v1";
+    const CATEGORY_KEY = "picscan-selected-category-v1";
+
+    const video = document.getElementById("video");
+    const previewCanvas = document.getElementById("previewCanvas");
+    const sourceCanvas = document.getElementById("sourceCanvas");
+    const cameraShell = document.getElementById("cameraShell");
+    const scanProgress = document.getElementById("scanProgress");
+
+    const categorySelect = document.getElementById("categorySelect");
+    const nextName = document.getElementById("nextName");
+    const headerCount = document.getElementById("headerCount");
+    const cameraControls = document.getElementById("cameraControls");
+    const usePhotoControl = document.getElementById("usePhotoControl");
+    const cameraToggleButton = document.getElementById("cameraToggleButton");
+    const takePictureButton = document.getElementById("takePictureButton");
+    const fileInput = document.getElementById("fileInput");
+    const reviewActions = document.getElementById("reviewActions");
+    const confirmButton = document.getElementById("confirmButton");
+    const retakeButton = document.getElementById("retakeButton");
+    const wholeButton = document.getElementById("wholeButton");
+    const sensitivity = document.getElementById("sensitivity");
+    const sensitivityValue = document.getElementById("sensitivityValue");
+
+    const status = document.getElementById("status");
+    const statusText = document.getElementById("statusText");
+    const resultsSection = document.getElementById("resultsSection");
+    const scansContainer = document.getElementById("scans");
+    const downloadAllButton = document.getElementById("downloadAllButton");
+    const clearButton = document.getElementById("clearButton");
+
+    const busy = document.getElementById("busy");
+    const busyTitle = document.getElementById("busyTitle");
+    const busyText = document.getElementById("busyText");
+    const toastElement = document.getElementById("toast");
+
+    const photoViewer = document.getElementById("photoViewer");
+    const viewerStage = document.getElementById("viewerStage");
+    const viewerImage = document.getElementById("viewerImage");
+    const viewerTitle = document.getElementById("viewerTitle");
+    const viewerMinusButton = document.getElementById("viewerMinusButton");
+    const viewerResetButton = document.getElementById("viewerResetButton");
+    const viewerPlusButton = document.getElementById("viewerPlusButton");
+    const viewerCloseButton = document.getElementById("viewerCloseButton");
+    const viewerGlareButton = document.getElementById("viewerGlareButton");
+    const viewerUndoButton = document.getElementById("viewerUndoButton");
+    const viewerRotateButton = document.getElementById("viewerRotateButton");
+    const viewerSaveButton = document.getElementById("viewerSaveButton");
+
+    let stream = null;
+    let imageCapture = null;
+    let openCvReady = false;
+    let mode = "closed";
+    let pendingCandidates = [];
+    let scans = [];
+    let newlyAddedId = null;
+    let toastTimer = null;
+
+    let viewerScanId = null;
+    let viewerScale = 1;
+    let viewerX = 0;
+    let viewerY = 0;
+    let viewerScrollY = 0;
+    let viewerGestureMoved = false;
+    let viewerPointerStart = null;
+    let viewerPinchStart = null;
+    const viewerPointers = new Map();
+
+    const counters = loadCounters();
+    const savedCategory = localStorage.getItem(CATEGORY_KEY);
+    if (savedCategory && Array.from(categorySelect.options).some(option => option.value === savedCategory)) {
+      categorySelect.value = savedCategory;
+    }
+
+    function loadCounters() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(COUNTER_KEY) || "{}");
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function saveCounters() {
+      localStorage.setItem(COUNTER_KEY, JSON.stringify(counters));
+    }
+
+    function safeName(value) {
+      const cleaned = String(value || "Photo")
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+      return cleaned || "Photo";
+    }
+
+    function nextNumberFor(category) {
+      return Number(counters[category] || 0) + 1;
+    }
+
+    function nextFileName(category, useNumber = false) {
+      const number = useNumber ? nextNumberFor(category) : nextNumberFor(category);
+      return `${safeName(category)}-${String(number).padStart(4, "0")}`;
+    }
+
+    function claimNextFileName(category) {
+      counters[category] = nextNumberFor(category);
+      saveCounters();
+      refreshNextName();
+      return `${safeName(category)}-${String(counters[category]).padStart(4, "0")}`;
+    }
+
+    function refreshNextName() {
+      nextName.textContent = `Next: ${nextFileName(categorySelect.value)}`;
+    }
+
+    function setStatus(type, message) {
+      status.classList.remove("ready", "error");
+      if (type) status.classList.add(type);
+      statusText.textContent = message;
+    }
+
+    function showBusy(title, text) {
+      busyTitle.textContent = title;
+      busyText.textContent = text;
+      busy.classList.add("visible");
+    }
+
+    function hideBusy() {
+      busy.classList.remove("visible");
+    }
+
+    function toast(message) {
+      clearTimeout(toastTimer);
+      toastElement.textContent = message;
+      toastElement.classList.add("show");
+      toastTimer = setTimeout(() => toastElement.classList.remove("show"), 2300);
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      const reviewing = mode === "review";
+      const scanning = mode === "scanning";
+      const cameraIsOpen = Boolean(stream);
+
+      cameraShell.classList.toggle("reviewing", reviewing || scanning);
+      cameraShell.classList.toggle("scanning", scanning);
+      reviewActions.classList.toggle("visible", reviewing && pendingCandidates.length > 0);
+      wholeButton.classList.toggle("visible", reviewing && pendingCandidates.length === 0);
+
+      cameraToggleButton.textContent = cameraIsOpen ? "CLOSE CAMERA" : "OPEN CAMERA";
+      cameraToggleButton.classList.toggle("live", cameraIsOpen);
+      cameraToggleButton.disabled = scanning || (reviewing && !cameraIsOpen);
+
+      takePictureButton.textContent = scans.length ? "TAKE NEXT" : "TAKE PICTURE";
+      takePictureButton.disabled = !cameraIsOpen || reviewing || scanning;
+
+      fileInput.disabled = reviewing || scanning;
+      usePhotoControl.classList.toggle("disabled", fileInput.disabled);
+    }
+
+    function updateResults() {
+      headerCount.textContent = `${scans.length} ready`;
+      resultsSection.classList.toggle("visible", scans.length > 0);
+      renderScans();
+    }
+
+    function renderScans() {
+      scansContainer.innerHTML = "";
+      scans.forEach((scan, index) => {
+        const card = document.createElement("article");
+        card.className = "scan-card" + (scan.id === newlyAddedId ? " new" : "");
+
+        const imageWrap = document.createElement("div");
+        imageWrap.className = "scan-image-wrap";
+
+        const image = document.createElement("img");
+        image.src = scan.url;
+        image.alt = scan.name;
+        imageWrap.setAttribute("role", "button");
+        imageWrap.setAttribute("tabindex", "0");
+        imageWrap.setAttribute("aria-label", `Open ${scan.name} full screen`);
+        imageWrap.addEventListener("click", () => openViewer(scan.id));
+        imageWrap.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openViewer(scan.id);
+          }
+        });
+
+        const number = document.createElement("span");
+        number.className = "scan-number";
+        number.textContent = String(index + 1);
+
+        imageWrap.append(image, number);
+
+        const info = document.createElement("div");
+        info.className = "scan-info";
+
+        const nameInput = document.createElement("input");
+        nameInput.className = "scan-name";
+        nameInput.type = "text";
+        nameInput.value = scan.name;
+        nameInput.setAttribute("aria-label", `Name for photo ${index + 1}`);
+        nameInput.addEventListener("change", () => {
+          scan.name = safeName(nameInput.value);
+          nameInput.value = scan.name;
+        });
+
+        const tools = document.createElement("div");
+        tools.className = "scan-tools";
+
+        const rotateButton = document.createElement("button");
+        rotateButton.textContent = "Rotate";
+        rotateButton.addEventListener("click", () => rotateScan(scan.id));
+
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "Save";
+        saveButton.addEventListener("click", () => downloadScan(scan.id));
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", () => removeScan(scan.id));
+
+        tools.append(rotateButton, saveButton, deleteButton);
+        info.append(nameInput, tools);
+        card.append(imageWrap, info);
+        scansContainer.append(card);
+      });
+
+      requestAnimationFrame(() => { newlyAddedId = null; });
+    }
+
+    async function onOpenCvReady() {
+      try {
+        if (window.cv instanceof Promise) window.cv = await window.cv;
+        if (window.cv && window.cv.Mat) {
+          finishOpenCvSetup();
+        } else if (window.cv) {
+          window.cv.onRuntimeInitialized = finishOpenCvSetup;
+        } else {
+          throw new Error("OpenCV did not initialize.");
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus("error", "Automatic photo splitting could not load.");
+      }
+    }
+
+    function finishOpenCvSetup() {
+      openCvReady = true;
+      setStatus("ready", stream ? "Camera ready. Lay out the photos and tap Take Picture." : "Ready. Tap Open Camera.");
+    }
+
+    async function toggleCamera() {
+      if (stream) {
+        closeCamera();
+        return;
+      }
+
+      if (mode === "review" || mode === "scanning") {
+        toast("Finish or retake the current picture before reopening the camera.");
+        return;
+      }
+
+      await openCamera();
+    }
+
+    function closeCamera() {
+      stopCamera();
+
+      if (mode === "camera") {
+        video.style.display = "none";
+        previewCanvas.style.display = "none";
+        setMode("closed");
+        setStatus(openCvReady ? "ready" : "", "Camera closed. You can work with the saved photos or open it again.");
+      } else {
+        setMode(mode);
+        if (mode === "review") {
+          setStatus(
+            pendingCandidates.length ? "ready" : "error",
+            pendingCandidates.length
+              ? `${pendingCandidates.length} photo${pendingCandidates.length === 1 ? "" : "s"} found. Camera closed while you review the green outlines.`
+              : "Camera closed. Adjust sensitivity, keep the whole picture, or retake."
+          );
+        }
+      }
+    }
+
+    async function openCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast("Camera access requires the HTTPS GitHub page. You can use an existing picture here.");
+        return;
+      }
+
+      try {
+        showBusy("Opening camera…", "Please allow camera access.");
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 3840 },
+            height: { ideal: 2160 }
+          }
+        });
+
+        video.srcObject = stream;
+        await video.play();
+        const track = stream.getVideoTracks()[0];
+        imageCapture = "ImageCapture" in window ? new ImageCapture(track) : null;
+
+        previewCanvas.style.display = "none";
+        video.style.display = "block";
+        setMode("camera");
+        setStatus(openCvReady ? "ready" : "", openCvReady ? "Camera ready. Tap Take Picture." : "Camera ready. Photo detection is still loading…");
+      } catch (error) {
+        console.error(error);
+        setStatus("error", "Camera permission was not available.");
+        toast("The camera could not open.");
+      } finally {
+        hideBusy();
+      }
+    }
+
+    async function capturePicture() {
+      if (!stream) return;
+
+      try {
+        showBusy("Taking picture…", "Hold the phone still.");
+        let blob = null;
+
+        if (imageCapture?.takePhoto) {
+          try {
+            blob = await imageCapture.takePhoto();
+          } catch (error) {
+            console.warn("Full-resolution capture failed. Using the video frame.", error);
+          }
+        }
+
+        if (!blob) {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth || 1920;
+          canvas.height = video.videoHeight || 1080;
+          canvas.getContext("2d", { alpha: false }).drawImage(video, 0, 0, canvas.width, canvas.height);
+          blob = await canvasToBlob(canvas, "image/jpeg", .96);
+        }
+
+        await prepareReview(blob);
+      } catch (error) {
+        console.error(error);
+        toast("The picture could not be processed.");
+      } finally {
+        hideBusy();
+      }
+    }
+
+    async function prepareReview(blob) {
+      await loadSourceBlob(blob);
+      pendingCandidates = openCvReady ? detectPhotoCandidates(sourceCanvas) : [];
+      drawSourcePreview(pendingCandidates, -1);
+      setMode("review");
+
+      updateReviewDetectionMessage();
+    }
+
+    function updateReviewDetectionMessage() {
+      setMode("review");
+
+      if (pendingCandidates.length) {
+        confirmButton.textContent = `YES — SCAN ${pendingCandidates.length}`;
+        setStatus("ready", `${pendingCandidates.length} photo${pendingCandidates.length === 1 ? "" : "s"} found. Are all four corners outlined correctly?`);
+      } else {
+        confirmButton.textContent = "YES — SCAN THESE";
+        setStatus("error", "No complete four-corner photo outlines were found. Move sensitivity right, retake, or keep the whole picture.");
+      }
+    }
+
+    function refreshDetectionForSensitivity() {
+      if (mode !== "review" || !openCvReady || !sourceCanvas.width) return;
+      pendingCandidates = detectPhotoCandidates(sourceCanvas);
+      drawSourcePreview(pendingCandidates, -1);
+      updateReviewDetectionMessage();
+    }
+
+    function retake() {
+      pendingCandidates = [];
+      previewCanvas.style.display = "none";
+
+      if (stream) {
+        video.style.display = "block";
+        video.play().catch(() => {});
+        setMode("camera");
+        setStatus(openCvReady ? "ready" : "", "Camera ready. Tap Take Picture.");
+      } else {
+        setMode("closed");
+        setStatus(openCvReady ? "ready" : "", "Ready. Tap Open Camera or use an existing picture.");
+      }
+    }
+
+    async function confirmDetectedPhotos() {
+      if (!pendingCandidates.length) return;
+
+      setMode("scanning");
+      const sourceMat = cv.imread(sourceCanvas);
+
+      try {
+        for (let index = 0; index < pendingCandidates.length; index += 1) {
+          scanProgress.textContent = `Scanning ${index + 1} of ${pendingCandidates.length}`;
+          drawSourcePreview(pendingCandidates, index);
+          await delay(180);
+
+          const canvas = warpCandidate(sourceMat, pendingCandidates[index].points);
+          await addCanvasAsScan(canvas);
+          canvas.width = 1;
+          canvas.height = 1;
+          updateResults();
+          await delay(180);
+        }
+
+        toast(`${pendingCandidates.length} photo${pendingCandidates.length === 1 ? "" : "s"} ready to save.`);
+      } catch (error) {
+        console.error(error);
+        toast("One of the photos could not be separated.");
+      } finally {
+        sourceMat.delete();
+        pendingCandidates = [];
+        cameraShell.classList.remove("scanning");
+        retake();
+      }
+    }
+
+    async function keepWholePicture() {
+      setMode("scanning");
+      scanProgress.textContent = "Saving picture";
+      try {
+        await delay(180);
+        await addCanvasAsScan(sourceCanvas);
+        updateResults();
+        toast("The full picture is ready to save.");
+      } finally {
+        pendingCandidates = [];
+        retake();
+      }
+    }
+
+    async function handleFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        showBusy("Opening picture…", "Finding the printed photos.");
+        await prepareReview(file);
+      } catch (error) {
+        console.error(error);
+        toast("That picture could not be opened.");
+      } finally {
+        hideBusy();
+        fileInput.value = "";
+      }
+    }
+
+    async function loadSourceBlob(blob) {
+      const bitmap = await blobToBitmap(blob);
+      const maxDimension = 3000;
+      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+      sourceCanvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      sourceCanvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+      const context = sourceCanvas.getContext("2d", { alpha: false, willReadFrequently: true });
+      context.fillStyle = "white";
+      context.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height);
+      context.drawImage(bitmap, 0, 0, sourceCanvas.width, sourceCanvas.height);
+      if (bitmap.close) bitmap.close();
+    }
+
+    async function blobToBitmap(blob) {
+      if ("createImageBitmap" in window) {
+        try {
+          return await createImageBitmap(blob, { imageOrientation: "from-image" });
+        } catch (error) {
+          return await createImageBitmap(blob);
+        }
+      }
+
+      return await new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const image = new Image();
+        image.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(image);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("The image could not be opened."));
+        };
+        image.src = url;
+      });
+    }
+
+    function detectPhotoCandidates(canvas) {
+      const src = cv.imread(canvas);
+      const gray = new cv.Mat();
+      const blurred = new cv.Mat();
+      const edges = new cv.Mat();
+      const closed = new cv.Mat();
+      const contours = new cv.MatVector();
+      const hierarchy = new cv.Mat();
+      const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(7, 7));
+
+      try {
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+        cv.Canny(blurred, edges, 45, 145);
+        cv.morphologyEx(edges, closed, cv.MORPH_CLOSE, kernel);
+        cv.dilate(closed, closed, kernel);
+        cv.findContours(closed, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+        const imageArea = src.rows * src.cols;
+        const sensitivityValue = Number(sensitivity.value);
+        const minAreaRatio = .006 + ((10 - sensitivityValue) * .0044);
+        const minArea = imageArea * minAreaRatio;
+        const maxArea = imageArea * .94;
+        const candidates = [];
+
+        for (let index = 0; index < contours.size(); index += 1) {
+          const contour = contours.get(index);
+          const area = Math.abs(cv.contourArea(contour));
+
+          if (area < minArea || area > maxArea) {
+            contour.delete();
+            continue;
+          }
+
+          const perimeter = cv.arcLength(contour, true);
+          const approx = new cv.Mat();
+          cv.approxPolyDP(contour, approx, .025 * perimeter, true);
+
+          if (approx.rows === 4 && cv.isContourConvex(approx)) {
+            const points = [];
+            for (let row = 0; row < 4; row += 1) {
+              points.push({ x: approx.intAt(row, 0), y: approx.intAt(row, 1) });
+            }
+
+            const ordered = orderPoints(points);
+            const width = Math.max(distance(ordered[0], ordered[1]), distance(ordered[2], ordered[3]));
+            const height = Math.max(distance(ordered[0], ordered[3]), distance(ordered[1], ordered[2]));
+            const aspect = width / Math.max(1, height);
+
+            if (width > 120 && height > 120 && aspect > .20 && aspect < 5) {
+              candidates.push({
+                points: ordered,
+                rect: boundingRectFromPoints(ordered),
+                area
+              });
+            }
+          }
+
+          approx.delete();
+          contour.delete();
+        }
+
+        return sortCandidates(dedupeCandidates(candidates));
+      } finally {
+        src.delete();
+        gray.delete();
+        blurred.delete();
+        edges.delete();
+        closed.delete();
+        contours.delete();
+        hierarchy.delete();
+        kernel.delete();
+      }
+    }
+
+    function drawSourcePreview(candidates, activeIndex) {
+      const displayLimit = 1400;
+      const scale = Math.min(1, displayLimit / Math.max(sourceCanvas.width, sourceCanvas.height));
+      previewCanvas.width = Math.max(1, Math.round(sourceCanvas.width * scale));
+      previewCanvas.height = Math.max(1, Math.round(sourceCanvas.height * scale));
+
+      const context = previewCanvas.getContext("2d");
+      context.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+      context.drawImage(sourceCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
+      context.font = `bold ${Math.max(15, previewCanvas.width / 42)}px system-ui`;
+
+      if (candidates.length) {
+        context.save();
+        context.fillStyle = "rgba(20,16,12,.46)";
+        context.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+        candidates.forEach(candidate => {
+          const points = candidate.points.map(point => ({ x: point.x * scale, y: point.y * scale }));
+          context.save();
+          context.beginPath();
+          context.moveTo(points[0].x, points[0].y);
+          for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
+            context.lineTo(points[pointIndex].x, points[pointIndex].y);
+          }
+          context.closePath();
+          context.clip();
+          context.drawImage(sourceCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
+          context.restore();
+        });
+
+        context.restore();
+      }
+
+      candidates.forEach((candidate, index) => {
+        const points = candidate.points.map(point => ({ x: point.x * scale, y: point.y * scale }));
+        const active = index === activeIndex;
+
+        context.beginPath();
+        context.moveTo(points[0].x, points[0].y);
+        for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
+          context.lineTo(points[pointIndex].x, points[pointIndex].y);
+        }
+        context.closePath();
+        context.lineWidth = active ? Math.max(6, previewCanvas.width / 140) : Math.max(3, previewCanvas.width / 230);
+        context.strokeStyle = active ? "#ffd76d" : "#71e381";
+        context.fillStyle = active ? "rgba(255,215,109,.18)" : "rgba(45,140,63,.10)";
+        context.fill();
+        context.stroke();
+
+        const labelX = Math.min(...points.map(point => point.x));
+        const labelY = Math.min(...points.map(point => point.y));
+        context.fillStyle = active ? "rgba(119,85,13,.95)" : "rgba(32,84,40,.92)";
+        context.fillRect(labelX, Math.max(0, labelY - 27), 31, 27);
+        context.fillStyle = "white";
+        context.fillText(String(index + 1), labelX + 8, Math.max(20, labelY - 7));
+      });
+
+      video.style.display = "none";
+      previewCanvas.style.display = "block";
+    }
+
+    function orderPoints(points) {
+      const sum = point => point.x + point.y;
+      const difference = point => point.y - point.x;
+      const topLeft = points.reduce((best, point) => sum(point) < sum(best) ? point : best);
+      const bottomRight = points.reduce((best, point) => sum(point) > sum(best) ? point : best);
+      const topRight = points.reduce((best, point) => difference(point) < difference(best) ? point : best);
+      const bottomLeft = points.reduce((best, point) => difference(point) > difference(best) ? point : best);
+      return [topLeft, topRight, bottomRight, bottomLeft];
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function boundingRectFromPoints(points) {
+      const xs = points.map(point => point.x);
+      const ys = points.map(point => point.y);
+      const x = Math.min(...xs);
+      const y = Math.min(...ys);
+      return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+    }
+
+    function intersectionOverUnion(a, b) {
+      const x1 = Math.max(a.x, b.x);
+      const y1 = Math.max(a.y, b.y);
+      const x2 = Math.min(a.x + a.width, b.x + b.width);
+      const y2 = Math.min(a.y + a.height, b.y + b.height);
+      const intersection = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+      if (!intersection) return 0;
+      const union = (a.width * a.height) + (b.width * b.height) - intersection;
+      return intersection / Math.max(1, union);
+    }
+
+    function dedupeCandidates(candidates) {
+      const sorted = [...candidates].sort((a, b) => b.area - a.area);
+      const kept = [];
+
+      sorted.forEach(candidate => {
+        const duplicate = kept.some(existing => {
+          const overlap = intersectionOverUnion(candidate.rect, existing.rect);
+          const centerX = candidate.rect.x + candidate.rect.width / 2;
+          const centerY = candidate.rect.y + candidate.rect.height / 2;
+          const centerInside =
+            centerX >= existing.rect.x && centerX <= existing.rect.x + existing.rect.width &&
+            centerY >= existing.rect.y && centerY <= existing.rect.y + existing.rect.height;
+          const relativeArea = candidate.area / Math.max(1, existing.area);
+          return overlap > .58 || (centerInside && relativeArea > .72);
+        });
+
+        if (!duplicate) kept.push(candidate);
+      });
+
+      return kept;
+    }
+
+    function sortCandidates(candidates) {
+      if (candidates.length < 2) return candidates;
+      const averageHeight = candidates.reduce((sum, item) => sum + item.rect.height, 0) / candidates.length;
+      const rowTolerance = averageHeight * .42;
+
+      return [...candidates].sort((a, b) => {
+        const ay = a.rect.y + a.rect.height / 2;
+        const by = b.rect.y + b.rect.height / 2;
+        if (Math.abs(ay - by) <= rowTolerance) return a.rect.x - b.rect.x;
+        return ay - by;
+      });
+    }
+
+    function warpCandidate(sourceMat, orderedPoints) {
+      const [topLeft, topRight, bottomRight, bottomLeft] = orderedPoints;
+      const width = Math.max(distance(bottomRight, bottomLeft), distance(topRight, topLeft));
+      const height = Math.max(distance(topRight, bottomRight), distance(topLeft, bottomLeft));
+      const outputWidth = Math.max(100, Math.round(width));
+      const outputHeight = Math.max(100, Math.round(height));
+
+      const sourcePoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        topLeft.x, topLeft.y,
+        topRight.x, topRight.y,
+        bottomRight.x, bottomRight.y,
+        bottomLeft.x, bottomLeft.y
+      ]);
+
+      const destinationPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        0, 0,
+        outputWidth - 1, 0,
+        outputWidth - 1, outputHeight - 1,
+        0, outputHeight - 1
+      ]);
+
+      const transform = cv.getPerspectiveTransform(sourcePoints, destinationPoints);
+      const output = new cv.Mat();
+
+      try {
+        cv.warpPerspective(
+          sourceMat,
+          output,
+          transform,
+          new cv.Size(outputWidth, outputHeight),
+          cv.INTER_CUBIC,
+          cv.BORDER_REPLICATE,
+          new cv.Scalar()
+        );
+
+        const canvas = document.createElement("canvas");
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
+        cv.imshow(canvas, output);
+        return canvas;
+      } finally {
+        sourcePoints.delete();
+        destinationPoints.delete();
+        transform.delete();
+        output.delete();
+      }
+    }
+
+    async function addCanvasAsScan(canvas) {
+      const blob = await canvasToBlob(canvas, "image/jpeg", .94);
+      const name = claimNextFileName(categorySelect.value);
+      const scan = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+        name,
+        blob,
+        undoBlob: null,
+        url: URL.createObjectURL(blob)
+      };
+      scans.push(scan);
+      newlyAddedId = scan.id;
+    }
+
+    function canvasToBlob(canvas, type = "image/jpeg", quality = .94) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not create image.")), type, quality);
+      });
+    }
+
+    async function rotateScan(id) {
+      const scan = scans.find(item => item.id === id);
+      if (!scan) return;
+
+      try {
+        showBusy("Rotating photo…", "Turning it 90 degrees.");
+        const bitmap = await blobToBitmap(scan.blob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.height;
+        canvas.height = bitmap.width;
+        const context = canvas.getContext("2d", { alpha: false });
+        context.translate(canvas.width, 0);
+        context.rotate(Math.PI / 2);
+        context.drawImage(bitmap, 0, 0);
+        if (bitmap.close) bitmap.close();
+
+        const blob = await canvasToBlob(canvas, "image/jpeg", .94);
+        scan.undoBlob = scan.blob;
+        URL.revokeObjectURL(scan.url);
+        scan.blob = blob;
+        scan.url = URL.createObjectURL(blob);
+        updateResults();
+        refreshViewer(scan.id);
+      } catch (error) {
+        console.error(error);
+        toast("The photo could not be rotated.");
+      } finally {
+        hideBusy();
+      }
+    }
+
+
+    function currentViewerScan() {
+      return scans.find(item => item.id === viewerScanId) || null;
+    }
+
+    function openViewer(id) {
+      const scan = scans.find(item => item.id === id);
+      if (!scan) return;
+
+      viewerScanId = id;
+      viewerScrollY = window.scrollY;
+      viewerTitle.textContent = scan.name;
+      viewerImage.src = scan.url;
+      viewerUndoButton.disabled = !scan.undoBlob;
+      resetViewerZoom();
+
+      photoViewer.classList.add("visible");
+      photoViewer.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeViewer() {
+      if (!photoViewer.classList.contains("visible")) return;
+
+      photoViewer.classList.remove("visible");
+      photoViewer.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      viewerPointers.clear();
+      viewerScanId = null;
+      resetViewerZoom();
+      window.scrollTo(0, viewerScrollY);
+    }
+
+    function refreshViewer(id) {
+      if (viewerScanId !== id) return;
+      const scan = currentViewerScan();
+      if (!scan) {
+        closeViewer();
+        return;
+      }
+
+      viewerTitle.textContent = scan.name;
+      viewerImage.src = scan.url;
+      viewerUndoButton.disabled = !scan.undoBlob;
+      resetViewerZoom();
+    }
+
+    function clampViewerScale(value) {
+      return Math.min(5, Math.max(1, value));
+    }
+
+    function applyViewerTransform() {
+      if (viewerScale <= 1.001) {
+        viewerScale = 1;
+        viewerX = 0;
+        viewerY = 0;
+      }
+
+      viewerImage.style.transform =
+        `translate3d(${viewerX}px, ${viewerY}px, 0) scale(${viewerScale})`;
+      viewerResetButton.textContent = `${viewerScale.toFixed(viewerScale < 2 ? 1 : 0)}×`;
+    }
+
+    function resetViewerZoom() {
+      viewerScale = 1;
+      viewerX = 0;
+      viewerY = 0;
+      applyViewerTransform();
+    }
+
+    function changeViewerZoom(amount) {
+      viewerScale = clampViewerScale(viewerScale + amount);
+      applyViewerTransform();
+    }
+
+    function viewerDistance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function viewerMidpoint(a, b) {
+      return {
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2
+      };
+    }
+
+    function handleViewerPointerDown(event) {
+      viewerStage.setPointerCapture?.(event.pointerId);
+      viewerPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      viewerGestureMoved = false;
+
+      if (viewerPointers.size === 1) {
+        viewerPointerStart = {
+          pointerX: event.clientX,
+          pointerY: event.clientY,
+          imageX: viewerX,
+          imageY: viewerY,
+          time: performance.now()
+        };
+      } else if (viewerPointers.size === 2) {
+        const points = [...viewerPointers.values()];
+        viewerPinchStart = {
+          distance: Math.max(1, viewerDistance(points[0], points[1])),
+          scale: viewerScale,
+          midpoint: viewerMidpoint(points[0], points[1]),
+          imageX: viewerX,
+          imageY: viewerY
+        };
+      }
+    }
+
+    function handleViewerPointerMove(event) {
+      if (!viewerPointers.has(event.pointerId)) return;
+      viewerPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (viewerPointers.size === 2 && viewerPinchStart) {
+        const points = [...viewerPointers.values()];
+        const distanceNow = Math.max(1, viewerDistance(points[0], points[1]));
+        const midpointNow = viewerMidpoint(points[0], points[1]);
+        viewerScale = clampViewerScale(
+          viewerPinchStart.scale * (distanceNow / viewerPinchStart.distance)
+        );
+        viewerX = viewerPinchStart.imageX + (midpointNow.x - viewerPinchStart.midpoint.x);
+        viewerY = viewerPinchStart.imageY + (midpointNow.y - viewerPinchStart.midpoint.y);
+        viewerGestureMoved = true;
+        applyViewerTransform();
+        return;
+      }
+
+      if (viewerPointers.size === 1 && viewerPointerStart && viewerScale > 1) {
+        const dx = event.clientX - viewerPointerStart.pointerX;
+        const dy = event.clientY - viewerPointerStart.pointerY;
+        if (Math.abs(dx) + Math.abs(dy) > 5) viewerGestureMoved = true;
+        viewerX = viewerPointerStart.imageX + dx;
+        viewerY = viewerPointerStart.imageY + dy;
+        applyViewerTransform();
+      }
+    }
+
+    function handleViewerPointerUp(event) {
+      const started = viewerPointerStart;
+      viewerPointers.delete(event.pointerId);
+
+      if (viewerPointers.size < 2) viewerPinchStart = null;
+
+      if (
+        started &&
+        !viewerGestureMoved &&
+        performance.now() - started.time < 320 &&
+        viewerScale <= 1.001
+      ) {
+        closeViewer();
+        return;
+      }
+
+      if (viewerPointers.size === 1) {
+        const remaining = [...viewerPointers.values()][0];
+        viewerPointerStart = {
+          pointerX: remaining.x,
+          pointerY: remaining.y,
+          imageX: viewerX,
+          imageY: viewerY,
+          time: performance.now()
+        };
+      } else {
+        viewerPointerStart = null;
+      }
+    }
+
+    async function fixPhoto(id) {
+      const scan = scans.find(item => item.id === id);
+      if (!scan) return;
+
+      try {
+        showBusy("Fixing photo…", "Reducing glare and enhancing the old print.");
+        const bitmap = await blobToBitmap(scan.blob);
+        const width = bitmap.width;
+        const height = bitmap.height;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", {
+          alpha: false,
+          willReadFrequently: true
+        });
+        context.drawImage(bitmap, 0, 0);
+
+        const blurCanvas = document.createElement("canvas");
+        blurCanvas.width = width;
+        blurCanvas.height = height;
+        const blurContext = blurCanvas.getContext("2d", {
+          alpha: false,
+          willReadFrequently: true
+        });
+        const blurRadius = Math.max(8, Math.round(Math.min(width, height) * .012));
+        blurContext.filter = `blur(${blurRadius}px)`;
+        blurContext.drawImage(bitmap, 0, 0);
+        blurContext.filter = "none";
+
+        const smallBlurCanvas = document.createElement("canvas");
+        smallBlurCanvas.width = width;
+        smallBlurCanvas.height = height;
+        const smallBlurContext = smallBlurCanvas.getContext("2d", {
+          alpha: false,
+          willReadFrequently: true
+        });
+        smallBlurContext.filter = "blur(1.6px)";
+        smallBlurContext.drawImage(bitmap, 0, 0);
+        smallBlurContext.filter = "none";
+
+        if (bitmap.close) bitmap.close();
+
+        const original = context.getImageData(0, 0, width, height);
+        const local = blurContext.getImageData(0, 0, width, height);
+        const mildBlur = smallBlurContext.getImageData(0, 0, width, height);
+
+        const pixels = original.data;
+        const localPixels = local.data;
+        const blurPixels = mildBlur.data;
+
+        const luminances = new Float32Array(pixels.length / 4);
+        let totalLum = 0;
+
+        for (let i = 0, p = 0; i < pixels.length; i += 4, p += 1) {
+          const lum = .2126 * pixels[i] + .7152 * pixels[i + 1] + .0722 * pixels[i + 2];
+          luminances[p] = lum;
+          totalLum += lum;
+        }
+
+        const avgLum = totalLum / Math.max(1, luminances.length);
+        const sortedLum = Array.from(luminances).sort((a, b) => a - b);
+        const lowLum = sortedLum[Math.floor(sortedLum.length * 0.02)] || 0;
+        const highLum = sortedLum[Math.floor(sortedLum.length * 0.985)] || 255;
+        const range = Math.max(24, highLum - lowLum);
+        const targetMid = avgLum < 120 ? 142 : 136;
+
+        for (let i = 0, p = 0; i < pixels.length; i += 4, p += 1) {
+          let red = pixels[i];
+          let green = pixels[i + 1];
+          let blue = pixels[i + 2];
+
+          const localRed = localPixels[i];
+          const localGreen = localPixels[i + 1];
+          const localBlue = localPixels[i + 2];
+
+          const blurRed = blurPixels[i];
+          const blurGreen = blurPixels[i + 1];
+          const blurBlue = blurPixels[i + 2];
+
+          let luminance = luminances[p];
+          const localLuminance = .2126 * localRed + .7152 * localGreen + .0722 * localBlue;
+
+          // Step 1: soften glare
+          const maximum = Math.max(red, green, blue);
+          const minimum = Math.min(red, green, blue);
+          const saturation = maximum ? (maximum - minimum) / maximum : 0;
+          const brightnessScore = Math.max(0, Math.min(1, (luminance - 178) / 70));
+          const excessScore = Math.max(0, Math.min(1, (luminance - localLuminance - 7) / 48));
+          const neutralScore = Math.max(0, Math.min(1, (.48 - saturation) / .48));
+          const glareScore = brightnessScore * excessScore * neutralScore;
+
+          if (glareScore > .015) {
+            const targetLuminance = Math.min(
+              luminance,
+              localLuminance + Math.max(12, (luminance - localLuminance) * .32)
+            );
+            const toneFactor = targetLuminance / Math.max(1, luminance);
+            const blend = Math.min(.82, glareScore * .88);
+
+            red = red * (1 - blend) + red * toneFactor * blend;
+            green = green * (1 - blend) + green * toneFactor * blend;
+            blue = blue * (1 - blend) + blue * toneFactor * blend;
+            luminance = .2126 * red + .7152 * green + .0722 * blue;
+          }
+
+          // Step 2: improve contrast / brightness
+          const normalized = Math.max(0, Math.min(1, (luminance - lowLum) / range));
+          const gamma = avgLum < 118 ? .92 : 1.0;
+          const corrected = Math.pow(normalized, gamma);
+          const desiredLuminance = Math.max(6, Math.min(248, corrected * 220 + (targetMid - 110)));
+          const lumScale = desiredLuminance / Math.max(1, luminance);
+
+          red *= lumScale;
+          green *= lumScale;
+          blue *= lumScale;
+
+          // Step 3: slight color / saturation boost for faded prints
+          const avg = (red + green + blue) / 3;
+          const satBoost = 1.08;
+          red = avg + (red - avg) * satBoost;
+          green = avg + (green - avg) * satBoost;
+          blue = avg + (blue - avg) * satBoost;
+
+          // Step 4: gentle unsharp mask
+          red = red * 1.12 - blurRed * 0.12;
+          green = green * 1.12 - blurGreen * 0.12;
+          blue = blue * 1.12 - blurBlue * 0.12;
+
+          // Step 5: tiny warm correction for old photos
+          red *= 1.01;
+          blue *= 0.995;
+
+          pixels[i] = Math.max(0, Math.min(255, Math.round(red)));
+          pixels[i + 1] = Math.max(0, Math.min(255, Math.round(green)));
+          pixels[i + 2] = Math.max(0, Math.min(255, Math.round(blue)));
+        }
+
+        context.putImageData(original, 0, 0);
+        const blob = await canvasToBlob(canvas, "image/jpeg", .95);
+
+        scan.undoBlob = scan.blob;
+        URL.revokeObjectURL(scan.url);
+        scan.blob = blob;
+        scan.url = URL.createObjectURL(blob);
+
+        updateResults();
+        refreshViewer(scan.id);
+        toast("Photo fixed. Tap Undo if you prefer the previous version.");
+      } catch (error) {
+        console.error(error);
+        toast("The photo could not be fixed.");
+      } finally {
+        hideBusy();
+      }
+    }
+
+    function undoScanEdit(id) {
+      const scan = scans.find(item => item.id === id);
+      if (!scan?.undoBlob) return;
+
+      const currentBlob = scan.blob;
+      scan.blob = scan.undoBlob;
+      scan.undoBlob = currentBlob;
+
+      URL.revokeObjectURL(scan.url);
+      scan.url = URL.createObjectURL(scan.blob);
+
+      updateResults();
+      refreshViewer(scan.id);
+      toast("Last photo change undone.");
+    }
+
+    function removeScan(id) {
+      const index = scans.findIndex(item => item.id === id);
+      if (index < 0) return;
+      if (viewerScanId === id) closeViewer();
+      URL.revokeObjectURL(scans[index].url);
+      scans.splice(index, 1);
+      updateResults();
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1200);
+    }
+
+    function downloadScan(id) {
+      const scan = scans.find(item => item.id === id);
+      if (!scan) return;
+      downloadBlob(scan.blob, `${safeName(scan.name)}.jpg`);
+    }
+
+    async function downloadAll() {
+      if (!scans.length) return;
+      const category = safeName(categorySelect.value);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+      if (!window.JSZip) {
+        scans.forEach((scan, index) => setTimeout(() => downloadScan(scan.id), index * 220));
+        toast("The photos are downloading separately.");
+        return;
+      }
+
+      try {
+        showBusy("Building ZIP…", "Packing the photos together.");
+        const zip = new JSZip();
+        const usedNames = new Map();
+
+        scans.forEach((scan, index) => {
+          let name = safeName(scan.name) || `Photo-${index + 1}`;
+          const count = usedNames.get(name) || 0;
+          usedNames.set(name, count + 1);
+          if (count) name = `${name}-${count + 1}`;
+          zip.file(`${name}.jpg`, scan.blob);
+        });
+
+        const blob = await zip.generateAsync({
+          type: "blob",
+          compression: "DEFLATE",
+          compressionOptions: { level: 6 }
+        });
+
+        downloadBlob(blob, `PicScan-${category}-${stamp}.zip`);
+        toast("ZIP ready.");
+      } catch (error) {
+        console.error(error);
+        toast("The ZIP could not be created.");
+      } finally {
+        hideBusy();
+      }
+    }
+
+    function clearScreen() {
+      if (!scans.length) return;
+      if (!window.confirm("Clear the photos from this screen? The numbering will keep going.")) return;
+      scans.forEach(scan => URL.revokeObjectURL(scan.url));
+      scans = [];
+      updateResults();
+      toast("Screen cleared. Numbering was kept.");
+    }
+
+    function stopCamera() {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      stream = null;
+      imageCapture = null;
+      video.srcObject = null;
+    }
+
+    categorySelect.addEventListener("change", () => {
+      localStorage.setItem(CATEGORY_KEY, categorySelect.value);
+      refreshNextName();
+    });
+
+    let sensitivityRefreshTimer = null;
+
+    sensitivity.addEventListener("input", () => {
+      sensitivityValue.textContent = sensitivity.value;
+      clearTimeout(sensitivityRefreshTimer);
+      sensitivityRefreshTimer = setTimeout(refreshDetectionForSensitivity, 120);
+    });
+
+    cameraToggleButton.addEventListener("click", toggleCamera);
+    takePictureButton.addEventListener("click", capturePicture);
+    fileInput.addEventListener("change", handleFile);
+    confirmButton.addEventListener("click", confirmDetectedPhotos);
+    retakeButton.addEventListener("click", retake);
+    wholeButton.addEventListener("click", keepWholePicture);
+    downloadAllButton.addEventListener("click", downloadAll);
+    clearButton.addEventListener("click", clearScreen);
+
+    viewerCloseButton.addEventListener("click", closeViewer);
+    viewerMinusButton.addEventListener("click", () => changeViewerZoom(-.5));
+    viewerPlusButton.addEventListener("click", () => changeViewerZoom(.5));
+    viewerResetButton.addEventListener("click", resetViewerZoom);
+    viewerGlareButton.addEventListener("click", () => {
+      if (viewerScanId) fixPhoto(viewerScanId);
+    });
+    viewerUndoButton.addEventListener("click", () => {
+      if (viewerScanId) undoScanEdit(viewerScanId);
+    });
+    viewerRotateButton.addEventListener("click", () => {
+      if (viewerScanId) rotateScan(viewerScanId);
+    });
+    viewerSaveButton.addEventListener("click", () => {
+      if (viewerScanId) downloadScan(viewerScanId);
+    });
+
+    viewerStage.addEventListener("pointerdown", handleViewerPointerDown);
+    viewerStage.addEventListener("pointermove", handleViewerPointerMove);
+    viewerStage.addEventListener("pointerup", handleViewerPointerUp);
+    viewerStage.addEventListener("pointercancel", handleViewerPointerUp);
+
+    window.addEventListener("keydown", event => {
+      if (event.key === "Escape" && photoViewer.classList.contains("visible")) {
+        closeViewer();
+      }
+    });
+
+    window.addEventListener("beforeunload", () => {
+      stopCamera();
+      scans.forEach(scan => URL.revokeObjectURL(scan.url));
+    });
+
+    refreshNextName();
+    setMode("closed");
+    updateResults();
+  </script>
+  <script
+    async
+    src="https://docs.opencv.org/4.x/opencv.js"
+    onload="onOpenCvReady()"
+    onerror="setStatus('error', 'Automatic photo splitting could not load. Check the internet connection.')">
+  </script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch(error => {
+          console.warn("PicScan service worker registration failed:", error);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
